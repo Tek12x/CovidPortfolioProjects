@@ -1,0 +1,138 @@
+-- Query from Gooogle BigQuery
+
+/*SELECT * 
+FROM `coursera-382221.covid19.covid_deaths` 
+WHERE continent IS NOT NULL
+ORDER BY 3, 4*/
+
+SELECT location, date, total_cases, new_cases, total_deaths, population
+FROM `coursera-382221.covid19.covid_deaths`
+WHERE continent IS NOT NULL
+ORDER BY 1,2
+
+-- Looking at total cases vs total Deaths
+-- Shows likelihood of dying if you contracted covid by country
+
+SELECT location, date, total_cases, total_deaths, (total_deaths/total_cases)*100 AS DeathPercentage
+FROM `coursera-382221.covid19.covid_deaths`
+ORDER BY 1,2
+
+-- Looking at Total Cases vs Populations
+-- Shows what percentage of population got COVID
+
+SELECT location, date, population, total_cases, (total_cases/population)*100 AS PercentOfPopulationInfected
+FROM `coursera-382221.covid19.covid_deaths`
+WHERE location like '%States%'
+ORDER BY 1,2
+
+-- Looking at Counties with Highest Infection Rate compared to Population
+
+SELECT location, population, MAX(total_cases) AS HighestInfectionCount, MAX((total_cases/population))*100 AS PercentOfPopulationInfected
+FROM `coursera-382221.covid19.covid_deaths`
+WHERE continent IS NOT NULL
+GROUP BY location, population
+ORDER BY PercentOfPopulationInfected desc
+
+-- Showing Countires with Highest Death Count per Population
+
+SELECT location, MAX(total_deaths) AS TotalDeathCount
+FROM `coursera-382221.covid19.covid_deaths`
+WHERE continent IS NOT NULL
+GROUP BY location
+ORDER BY TotalDeathCount desc
+
+-- Breaking things down by Continent
+
+SELECT location, MAX(total_deaths) AS TotalDeathCount
+FROM `coursera-382221.covid19.covid_deaths`
+WHERE continent IS NULL
+GROUP BY location
+ORDER BY TotalDeathCount desc
+
+-- Showing contintents with the Highest death count per population
+
+SELECT continent, MAX(total_deaths) AS TotalDeathCount
+FROM `coursera-382221.covid19.covid_deaths`
+WHERE continent IS NOT NULL
+GROUP BY continent
+ORDER BY TotalDeathCount desc
+
+-- Global Numbers to date
+
+SELECT SUM(new_cases) AS total_cases, SUM(new_deaths) AS total_deaths, SUM(new_deaths)/SUM(new_cases)*100 AS DeathPercentage
+FROM `coursera-382221.covid19.covid_deaths`
+WHERE continent IS NOT NULL
+ORDER BY 1,2
+
+--Global Daily Numbers of New cases and Deaths
+
+SELECT date, SUM(new_cases) AS total_cases, SUM(new_deaths) AS total_deaths, SUM(new_deaths)/SUM(new_cases)*100 AS DeathPercentage
+FROM `coursera-382221.covid19.covid_deaths`
+WHERE continent IS NOT NULL
+GROUP BY date
+ORDER BY 1,2
+
+-- Looking at Total Population vs Vaccinations
+
+SELECT dea.continent, dea.location, dea.date,dea.population, vac.new_vaccinations 
+FROM `coursera-382221.covid19.covid_deaths` dea
+JOIN `coursera-382221.covid19.covid_vac` vac
+  ON dea.location = vac.location
+  AND dea.date = vac.date
+WHERE dea.continent IS NOT NULL
+ORDER BY 2,3
+
+-- Rolling Count of People Vaccinated
+
+SELECT dea.continent, dea.location, dea.date,dea.population, vac.new_vaccinations,  
+  SUM(vac.new_vaccinations) OVER (PARTITION BY dea.location ORDER BY dea.location, dea.date) AS RollingPeopleVaccinated
+FROM `coursera-382221.covid19.covid_deaths` dea
+JOIN `coursera-382221.covid19.covid_vac` vac
+  ON dea.location = vac.location
+  AND dea.date = vac.date
+WHERE dea.continent IS NOT NULL
+ORDER BY 2,3
+
+--  
+WITH PopVsVac
+AS (
+SELECT dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations,
+  SUM(vac.new_vaccinations) OVER (PARTITION BY dea.location ORDER BY dea.location, dea.date) AS RollingPeopleVaccinated
+FROM `coursera-382221.covid19.covid_deaths` dea
+JOIN `coursera-382221.covid19.covid_vac` vac
+  ON dea.location = vac.location
+  AND dea.date = vac.date
+WHERE dea.continent IS NOT NULL
+--ORDER BY 2,3
+)
+Select *, (RollingPeopleVaccinated/population)*100
+FROM PopVsVac
+
+
+-- TEMP Table
+DROP Table if EXISTS PercentPopulationVaccindated
+Create TEMP Table PercentPopulationVaccindated
+(
+  continent STRING(255),
+  location STRING(255),
+  date datetime,
+  population numeric,
+  new_vaccinations numeric,
+  RollingPeopleVaccinated numeric
+);
+
+INSERT INTO PercentPopulationVaccindated
+SELECT dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations,
+  SUM(vac.new_vaccinations) OVER (PARTITION BY dea.location ORDER BY dea.location, dea.date) AS RollingPeopleVaccinated
+FROM `coursera-382221.covid19.covid_deaths` dea
+JOIN `coursera-382221.covid19.covid_vac` vac
+  ON dea.location = vac.location
+  AND dea.date = vac.date
+WHERE dea.continent IS NOT NULL;
+
+Select *, (RollingPeopleVaccinated/population)*100
+FROM PercentPopulationVaccindated;
+
+-- Creating View to Store data for later visualization
+
+CREATE View 
