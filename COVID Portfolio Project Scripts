@@ -1,14 +1,23 @@
 -- Query from Gooogle BigQuery
 
-/*SELECT * 
+/*
+Covid 19 Data Exploration using Google BigQuery
+Skills used: Joins, CTE's, Temp Tables, Windows Functions, Aggregate Functions, Creating Views, Converting Data Types
+*/
+
+SELECT * 
 FROM `coursera-382221.covid19.covid_deaths` 
 WHERE continent IS NOT NULL
-ORDER BY 3, 4*/
+ORDER BY 3, 4
+
+
+-- Select Data that we are going to be starting with
 
 SELECT location, date, total_cases, new_cases, total_deaths, population
 FROM `coursera-382221.covid19.covid_deaths`
 WHERE continent IS NOT NULL
 ORDER BY 1,2
+
 
 -- Looking at total cases vs total Deaths
 -- Shows likelihood of dying if you contracted covid by country
@@ -16,6 +25,7 @@ ORDER BY 1,2
 SELECT location, date, total_cases, total_deaths, (total_deaths/total_cases)*100 AS DeathPercentage
 FROM `coursera-382221.covid19.covid_deaths`
 ORDER BY 1,2
+
 
 -- Looking at Total Cases vs Populations
 -- Shows what percentage of population got COVID
@@ -25,6 +35,8 @@ FROM `coursera-382221.covid19.covid_deaths`
 WHERE location like '%States%'
 ORDER BY 1,2
 
+
+
 -- Looking at Counties with Highest Infection Rate compared to Population
 
 SELECT location, population, MAX(total_cases) AS HighestInfectionCount, MAX((total_cases/population))*100 AS PercentOfPopulationInfected
@@ -32,6 +44,7 @@ FROM `coursera-382221.covid19.covid_deaths`
 WHERE continent IS NOT NULL
 GROUP BY location, population
 ORDER BY PercentOfPopulationInfected desc
+
 
 -- Showing Countires with Highest Death Count per Population
 
@@ -41,6 +54,7 @@ WHERE continent IS NOT NULL
 GROUP BY location
 ORDER BY TotalDeathCount desc
 
+
 -- Breaking things down by Continent
 
 SELECT location, MAX(total_deaths) AS TotalDeathCount
@@ -48,6 +62,7 @@ FROM `coursera-382221.covid19.covid_deaths`
 WHERE continent IS NULL
 GROUP BY location
 ORDER BY TotalDeathCount desc
+
 
 -- Showing contintents with the Highest death count per population
 
@@ -57,12 +72,14 @@ WHERE continent IS NOT NULL
 GROUP BY continent
 ORDER BY TotalDeathCount desc
 
--- Global Numbers to date
+
+-- Global Numbers As Of Apr 20, 2021
 
 SELECT SUM(new_cases) AS total_cases, SUM(new_deaths) AS total_deaths, SUM(new_deaths)/SUM(new_cases)*100 AS DeathPercentage
 FROM `coursera-382221.covid19.covid_deaths`
 WHERE continent IS NOT NULL
 ORDER BY 1,2
+
 
 --Global Daily Numbers of New cases and Deaths
 
@@ -71,6 +88,7 @@ FROM `coursera-382221.covid19.covid_deaths`
 WHERE continent IS NOT NULL
 GROUP BY date
 ORDER BY 1,2
+
 
 -- Looking at Total Population vs Vaccinations
 
@@ -82,7 +100,10 @@ JOIN `coursera-382221.covid19.covid_vac` vac
 WHERE dea.continent IS NOT NULL
 ORDER BY 2,3
 
+
 -- Rolling Count of People Vaccinated
+-- Total Population vs Vaccinations
+-- Shows Percentage of Population that has recieved at least one Covid Vaccine
 
 SELECT dea.continent, dea.location, dea.date,dea.population, vac.new_vaccinations,  
   SUM(vac.new_vaccinations) OVER (PARTITION BY dea.location ORDER BY dea.location, dea.date) AS RollingPeopleVaccinated
@@ -93,7 +114,9 @@ JOIN `coursera-382221.covid19.covid_vac` vac
 WHERE dea.continent IS NOT NULL
 ORDER BY 2,3
 
---  
+
+-- Using CTE to perform Calculation on Partition By in previous query
+
 WITH PopVsVac
 AS (
 SELECT dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations,
@@ -109,7 +132,8 @@ Select *, (RollingPeopleVaccinated/population)*100
 FROM PopVsVac
 
 
--- TEMP Table
+-- Using Temp Table to perform Calculation on Partition By in previous query
+
 DROP Table if EXISTS PercentPopulationVaccindated
 Create TEMP Table PercentPopulationVaccindated
 (
@@ -133,6 +157,4 @@ WHERE dea.continent IS NOT NULL;
 Select *, (RollingPeopleVaccinated/population)*100
 FROM PercentPopulationVaccindated;
 
--- Creating View to Store data for later visualization
 
-CREATE View 
